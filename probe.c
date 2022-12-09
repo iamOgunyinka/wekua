@@ -5,7 +5,7 @@
 #include <time.h>
 
 int main(){
-	wekuaContext ctx = createSomeWekuaContext(CL_DEVICE_TYPE_GPU, 1);
+	wekuaContext ctx = createSomeWekuaContext(CL_DEVICE_TYPE_GPU, 1, 0);
 	if (ctx == NULL) return 1;
 
 	double alpha = 2.0, error = 1.0f;
@@ -40,12 +40,18 @@ int main(){
 
 	wmatrix output;
 
+	wekuaMatrixPrint(net->neurons[0]->weight[0], 0, NULL);
+
+	loadWekuaNetwork("papa", net, ctx);
+
+	wekuaMatrixPrint(net->neurons[0]->weight[0], 0, NULL);
+
 	for (uint32_t n=0; n<10000;){
 		clock_gettime(CLOCK_MONOTONIC, &tstart);
 		for (uint32_t x=0; x<1000; x++){
 			output = runWekuaNetwork(net, input, &cache);
 
-			wekuaCrossEntropy(output, output_wanted, &error, NULL, err, 0, NULL);
+			wekuaMSE(output, output_wanted, &error, NULL, err, 0, NULL);
 			wekuaNetworkBackward(net, err, cache, NULL);
 			wekuaOptimStep(optim, err, cache);
 
@@ -56,6 +62,10 @@ int main(){
 		n += 1000;
 		printf("Epoch: %d - Error: %.8f - Took %.6f\n", n, error, (((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec))/1000);
 	}
+
+	saveWekuaNetwork("papa", net);
+
+	wekuaMatrixPrint(net->neurons[0]->weight[0], 0, NULL);
 
 	output = runWekuaNetwork(net, input, 0);
 	wekuaMatrixPrint(output, 0, 0);
@@ -68,6 +78,7 @@ int main(){
 
 	wekuaFreeMatrix(output_wanted, 0, NULL);
 	wekuaFreeMatrix(input, 0, NULL);
+	
 
 	freeWekuaContext(ctx);
 	return 0;
