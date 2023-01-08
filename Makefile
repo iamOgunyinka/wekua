@@ -1,15 +1,24 @@
 CC = gcc
 CFLAGS = -W -Wall -g -fPIC -O2
-archives = wekua.o
+archives = wekua.o tensor.o
+modules = tensor
 
-main: $(archives)
+main: $(modules) $(archives)
 	$(CC) $(CFLAGS) -shared -lOpenCL -pthread $(archives) -o libwekua.so -lm
 
-debug: $(archives)
+debug: $(modules) $(archives)
 	$(CC) $(CFLAGS) -shared -fsanitize=address -fsanitize-recover=address -lOpenCL -pthread $(archives) -o libwekua.so -lm
 
 %.o: src/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
+
+tensor:
+	$(make) -C src/tensor
+	cp src/tensor/tensor.o tensor.o
+
+tensor_debug:
+	$(make) -C src/tensor debug
+	cp src/tensor/tensor.o tensor.o
 
 install:
 	cp libwekua.so /usr/lib/

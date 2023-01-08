@@ -47,11 +47,14 @@ wdevice wekuaDeviceFromclDevice(cl_device_id dev);
 void freeWekuaPlatforms(wplatform *platforms, uint32_t nplat);
 void freeWekuaDevices(wdevice *devices, uint32_t ndev);
 
+typedef struct _w_kernel {
+	void (*release_cl_kernels)(struct _w_kernel*);
+} *wkernel;
+
 typedef struct _wk_ctx {
 	cl_context ctx; // OpenCL Context
 	cl_command_queue command_queue; // OpenCL Command Queue
-	cl_program *programs; // OpenCL programs
-	cl_kernel *kernels; // OpenCL kernels
+	wkernel *kernels; // Wekua Kernels
 
 	struct _w_device_t device; // Wekua device
 
@@ -76,6 +79,7 @@ void freeWekuaContext(wekuaContext context);
 cl_kernel compileKernel(wekuaContext ctx, uint8_t id, uint8_t com);
 cl_kernel compileCustomKernel(wekuaContext ctx, const char *filename, const char *kernel_name, char *args, cl_program *program);
 
+void get_local_work_items(uint64_t *x, uint64_t *y, uint64_t ndim, uint64_t max);
 
 #ifdef __cplusplus
 }

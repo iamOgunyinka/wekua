@@ -1,7 +1,7 @@
 #include "../headers/wekua.h"
-#include <string.h>
 
-#include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 #define WEKUA_OPENCL_GET_ATTR_SIZE(func, obj, attr, ptr, error_label) \
 	ret = func(obj, attr, 0, NULL, ptr); \
@@ -229,8 +229,7 @@ wekuaContext createWekuaContext(wdevice dev, uint8_t use_vectors, uint8_t alloc_
 	context->command_queue = clCreateCommandQueueWithProperties(context->ctx, device->device, NULL, &ret);
 	if (ret != CL_SUCCESS) goto createWekuaContext_error;
 
-	context->programs = (cl_program*) calloc(2*KERNEL_COL, sizeof(cl_program));
-	context->kernels = (cl_kernel*) calloc(2*KERNEL_COL, sizeof(cl_kernel));
+	context->kernels = (wkernel*) calloc(KERNEL_COL, sizeof(void*));
 	context->dtype_length = dtype_length;
 
 	if (alloc_host_mem) context->mem_flags = CL_MEM_READ_WRITE|CL_MEM_ALLOC_HOST_PTR;
@@ -286,17 +285,12 @@ void freeWekuaContext(wekuaContext context){
 	if (!context) return;
 
 	if (context->kernels){
-		for (uint32_t x=0; x<KERNEL_COL*2; x++){
-			if (context->kernels[x]) clReleaseKernel(context->kernels[x]);
+		wkernel *kernels = context->kernels;
+		for (uint32_t x=0; x<KERNEL_COL; x++){
+			wkernel k = kernels[x];
+			k->release_cl_kernels(k);
 		}
 		free(context->kernels);
-	}
-
-	if (context->programs){
-		for (uint32_t x=0; x<KERNEL_COL*2; x++){
-			if (context->programs[x]) clReleaseProgram(context->programs[x]);
-		}
-		free(context->programs);
 	}
 
 	if (context->command_queue){
@@ -307,4 +301,19 @@ void freeWekuaContext(wekuaContext context){
 	if (context->device.device) freeWekuaDevice(&context->device);
 	if (context->ctx) clReleaseContext(context->ctx);
 	free(context);
+}
+
+void get_local_work_items(uint64_t *x, uint64_t *y, uint64_t ndim, uint64_t max){
+	uint64_t c = (uint64_t)(pow(1.0*max, 1.0/ndim));
+	uint64_t a, b;
+	for (uint32_t j=0; j<ndim; j++){
+		a = x[j];
+		if (a < c){
+			y[j] = a;
+			continue;
+		}
+		b = c;
+		while (a%b != 0) b--;
+		x[j] = a; y[j] = b;
+	}
 }
